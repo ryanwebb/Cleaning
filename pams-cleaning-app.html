@@ -1,0 +1,744 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0"/>
+  <title>Pam's Clean Home</title>
+  <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&family=Playfair+Display:wght@600;700&display=swap" rel="stylesheet"/>
+  <style>
+    *{box-sizing:border-box;margin:0;padding:0;}
+    body{min-height:100vh;background:linear-gradient(150deg,#fff9f0 0%,#f0f4ff 50%,#f9f0ff 100%);font-family:'Georgia',serif;color:#1a1a2e;padding-bottom:60px;}
+    .tr{transition:all 0.15s ease;cursor:pointer;user-select:none;}
+    .tr:hover{transform:translateX(3px);filter:brightness(0.97);}
+    .tr:active{transform:scale(0.97);}
+    .pop{animation:ckpop 0.55s cubic-bezier(0.34,1.9,0.64,1) both;}
+    @keyframes ckpop{0%{transform:scale(0.2) rotate(-20deg);opacity:0}60%{transform:scale(1.4) rotate(8deg)}100%{transform:scale(1) rotate(0);opacity:1}}
+    @keyframes burst{0%{transform:translate(-50%,-50%) scale(1.2);opacity:1}100%{transform:translate(calc(-50% + var(--dx)),calc(-50% + var(--dy))) scale(0);opacity:0}}
+    .tb{transition:all 0.18s;border:none;cursor:pointer;font-family:'Nunito',sans-serif;}
+    .tb:hover{transform:translateY(-2px) scale(1.05);}
+    .tb:active{transform:scale(0.95);}
+    .fin{animation:fadeUp 0.38s ease both;}
+    @keyframes fadeUp{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:translateY(0)}}
+    .pulse{animation:glow 2.8s ease-in-out infinite;}
+    @keyframes glow{0%,100%{box-shadow:0 4px 18px rgba(233,30,99,0.35)}50%{box-shadow:0 4px 28px rgba(233,30,99,0.65)}}
+    .sb{transition:all 0.15s;border:none;cursor:pointer;font-family:'Nunito',sans-serif;}
+    .sb:hover{transform:scale(1.03);filter:brightness(1.05);}
+    .sc{transition:box-shadow 0.2s;}
+    .sc:hover{box-shadow:0 8px 32px rgba(0,0,0,0.13)!important;}
+    .icon-btn{cursor:pointer;border:2px solid transparent;border-radius:8px;padding:3px;font-size:20px;transition:all 0.12s;background:transparent;}
+    .icon-btn:hover{transform:scale(1.2);}
+    .icon-btn.sel{border-color:#9c27b0;background:#f3e5f5;}
+    textarea{font-family:'Nunito',sans-serif;font-size:14px;resize:vertical;outline:none;border:2px solid #e0e0e0;border-radius:12px;padding:10px 12px;width:100%;transition:border 0.2s;}
+    textarea:focus{border-color:#9c27b0;}
+    input[type=text]{font-family:'Nunito',sans-serif;font-size:14px;outline:none;border:2px solid #e0e0e0;border-radius:12px;padding:10px 12px;width:100%;transition:border 0.2s;}
+    input[type=text]:focus{border-color:#9c27b0;}
+    ::-webkit-scrollbar{width:4px;}
+    ::-webkit-scrollbar-thumb{background:#ccc;border-radius:4px;}
+    .hidden{display:none!important;}
+    #confetti-root{position:fixed;top:0;left:0;pointer-events:none;z-index:9999;}
+    /* Modal overlay */
+    .modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.5);display:flex;align-items:flex-end;justify-content:center;z-index:1000;backdrop-filter:blur(5px);}
+    .modal-overlay.center{align-items:center;padding:20px;}
+    .modal-sheet{background:#fff;border-radius:24px 24px 0 0;padding:24px 20px 44px;width:100%;max-width:500px;box-shadow:0 -10px 50px rgba(0,0,0,0.2);}
+    .modal-center{background:#fff;border-radius:24px;padding:28px 22px;width:100%;max-width:360px;box-shadow:0 14px 60px rgba(0,0,0,0.25);}
+  </style>
+</head>
+<body>
+<div id="confetti-root"></div>
+<div id="app"></div>
+
+<script>
+const DAYS=["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"];
+const MONTH_NAMES=["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+const STORAGE_KEY="pam_cleaning_v4";
+
+const PAL={
+  daily:    {bg:"#e8f4f8",accent:"#2196F3",light:"#bbdefb",text:"#0d47a1"},
+  monday:   {bg:"#fce4ec",accent:"#e91e63",light:"#f8bbd0",text:"#880e4f"},
+  tuesday:  {bg:"#f3e5f5",accent:"#9c27b0",light:"#e1bee7",text:"#4a148c"},
+  wednesday:{bg:"#e8f5e9",accent:"#4caf50",light:"#c8e6c9",text:"#1b5e20"},
+  thursday: {bg:"#fff3e0",accent:"#ff9800",light:"#ffe0b2",text:"#e65100"},
+  friday:   {bg:"#e3f2fd",accent:"#1976d2",light:"#bbdefb",text:"#0d47a1"},
+  saturday: {bg:"#e8f5e9",accent:"#43a047",light:"#c8e6c9",text:"#2e7d32"},
+  sunday:   {bg:"#f1f8e9",accent:"#8bc34a",light:"#dcedc8",text:"#33691e"},
+  monthly:  {bg:"#fce4ec",accent:"#f06292",light:"#f8bbd0",text:"#880e4f"},
+  quarterly:{bg:"#e0f2f1",accent:"#009688",light:"#b2dfdb",text:"#004d40"},
+  semiannual:{bg:"#fff8e1",accent:"#ffc107",light:"#ffecb3",text:"#ff6f00"},
+  annual:   {bg:"#efebe9",accent:"#795548",light:"#d7ccc8",text:"#3e2723"},
+};
+
+const DEFAULT_TASKS={
+  daily:[
+    {id:"d1",label:"Make bed",icon:"🛏️"},
+    {id:"d2",label:"Empty trash",icon:"🗑️"},
+    {id:"d3",label:"Do dishes",icon:"🍽️"},
+    {id:"d4",label:"Wipe kitchen counters",icon:"✨"},
+    {id:"d5",label:"Wipe/clean stovetop",icon:"🔥"},
+    {id:"d6",label:"Pooper scoop",icon:"🐾"},
+  ],
+  weekly:{
+    1:{title:"Bathrooms",icon:"🚿",pal:PAL.monday,tasks:[
+      {id:"w_mon1",label:"Wipe mirrors & counters"},
+      {id:"w_mon2",label:"Clean toilet, sink, bath/shower"},
+      {id:"w_mon3",label:"Sweep and mop floor"},
+      {id:"w_mon4",label:"Stock toilet paper"},
+      {id:"w_mon5",label:"Replace towels"},
+      {id:"w_mon6",label:"Water plants"},
+      {id:"w_mon7",label:"Wipe fronts of appliances"},
+    ]},
+    2:{title:"Bedrooms",icon:"🛏️",pal:PAL.tuesday,tasks:[
+      {id:"w_tue1",label:"Dust/wipe furniture"},
+      {id:"w_tue2",label:"Sweep and mop floor"},
+      {id:"w_tue3",label:"Wash/change sheets"},
+      {id:"w_tue4",label:"Empty Roomba & Sharkira"},
+      {id:"w_tue5",label:"Laundry / towels / CPAP headgear"},
+      {id:"w_tue6",label:"Clean CPAP equipment"},
+    ]},
+    3:{title:"Kitchen",icon:"🍳",pal:PAL.wednesday,tasks:[
+      {id:"w_wed1",label:"Clean sink"},
+      {id:"w_wed2",label:"Clean table"},
+      {id:"w_wed3",label:"Declutter refrigerator"},
+      {id:"w_wed4",label:"Sweep and mop"},
+      {id:"w_wed5",label:"Sanitize sponges"},
+      {id:"w_wed6",label:"Monthly chores check-in"},
+    ]},
+    4:{title:"Living Room",icon:"🛋️",pal:PAL.thursday,tasks:[
+      {id:"w_thu1",label:"Wipe down electronics"},
+      {id:"w_thu2",label:"Dust/wipe furniture"},
+      {id:"w_thu3",label:"Sweep and mop"},
+      {id:"w_thu4",label:"Wash dog beds/sofa covers"},
+    ]},
+    5:{title:"Entryway · Office · Laundry",icon:"🏠",pal:PAL.friday,tasks:[
+      {id:"w_fri1",label:"Clean rug"},
+      {id:"w_fri2",label:"Organize hall rack"},
+      {id:"w_fri3",label:"Clean doorknobs & switches"},
+      {id:"w_fri4",label:"Dust & wipe surfaces"},
+      {id:"w_fri5",label:"Sweep and mop floor"},
+      {id:"w_fri6",label:"Brush dogs"},
+      {id:"w_fri7",label:"Clean office"},
+    ]},
+    6:{title:"Grocery & Meal Planning",icon:"🛒",pal:PAL.saturday,tasks:[
+      {id:"w_sat1",label:"Plan meals for week"},
+      {id:"w_sat2",label:"Make shopping list"},
+      {id:"w_sat3",label:"Grocery shopping"},
+      {id:"w_sat4",label:"Laundry"},
+      {id:"w_sat5",label:"Empty Roomba & Sharkira"},
+    ]},
+    0:{title:"Lawn Work",icon:"🌿",pal:PAL.sunday,tasks:[
+      {id:"w_sun1",label:"Weed flower beds"},
+      {id:"w_sun2",label:"Mow (seasonal)"},
+      {id:"w_sun3",label:"Clean patios and entryway"},
+    ]},
+  },
+  monthly:[
+    {id:"m1",label:"Wipe kitchen cabinets",icon:"🗄️"},
+    {id:"m2",label:"Clean microwave, oven & toaster",icon:"📦"},
+    {id:"m3",label:"Deep clean fridge",icon:"❄️"},
+    {id:"m4",label:"Disinfect trash cans, doorknobs, light switches",icon:"🧴"},
+    {id:"m5",label:"Bathe dogs",icon:"🐕"},
+    {id:"m6",label:"Clean underneath furniture",icon:"🧹"},
+    {id:"m7",label:"Wash blankets/comforters on bed",icon:"🛏️"},
+    {id:"m8",label:"Clean & descale tea pot",icon:"🫖"},
+    {id:"m9",label:"Clean washing machine drum",icon:"🌀"},
+  ],
+  quarterly:[
+    {id:"q1",label:"Clean windows & window treatments",icon:"🪟"},
+    {id:"q2",label:"Dust ceiling fans and light fixtures",icon:"💡"},
+    {id:"q3",label:"Vacuum & clean upholstered furniture",icon:"🛋️"},
+    {id:"q4",label:"Check and replace filters",icon:"🔧"},
+    {id:"q5",label:"Clean garage",icon:"🏠"},
+  ],
+  semiannual:[
+    {id:"s1",label:"Laundry room deep clean",icon:"🌀"},
+    {id:"s2",label:"Bathrooms & Toilets deep clean",icon:"🚿"},
+    {id:"s3",label:"Walls",icon:"🏠"},
+    {id:"s4",label:"Kitchen deep clean",icon:"🍳"},
+    {id:"s5",label:"Living Room deep clean",icon:"🛋️"},
+    {id:"s6",label:"Bedrooms deep clean",icon:"🛏️"},
+    {id:"s7",label:"Entrance deep clean",icon:"🚪"},
+    {id:"s8",label:"Garden/Yard",icon:"🌿"},
+  ],
+  annual:[
+    {id:"a1",month:"Jan",label:"Declutter & clean storage areas"},
+    {id:"a2",month:"Feb",label:"Deep clean floors"},
+    {id:"a3",month:"Mar",label:"Dust & wipe light fixtures"},
+    {id:"a4",month:"Apr",label:"Clear garage"},
+    {id:"a5",month:"May",label:"Clean shed"},
+    {id:"a6",month:"Jun",label:"Pressure wash outside"},
+    {id:"a7",month:"Jul",label:"Clean gutters"},
+    {id:"a8",month:"Aug",label:"Clear closets and deep clean"},
+    {id:"a9",month:"Sep",label:"Clear pantry and deep clean"},
+    {id:"a10",month:"Oct",label:"Clear General Store and deep clean"},
+    {id:"a11",month:"Nov",label:"Clear & deep clean office"},
+    {id:"a12",month:"Dec",label:"Clear out unused Christmas decor"},
+  ]
+};
+
+const ICONS=["🧹","🫧","🪣","🧽","🧴","🛁","🚿","🪥","🛏️","🗑️","🍽️","✨","🔥","🐾","🌿","🪟","💡","🛋️","🔧","🏠","🚪","🌀","🫖","🐕","❄️","🗄️","📦","🛒","🪴","🧺"];
+
+// ── Key helpers ──────────────────────────────────────────────
+function getTodayKey(){return new Date().toISOString().split("T")[0];}
+function getWeekKey(){
+  const d=new Date(),day=d.getDay();
+  const m=new Date(d);m.setDate(d.getDate()-(day===0?6:day-1));
+  return m.toISOString().split("T")[0];
+}
+function getPrevWeekKey(){
+  const d=new Date(),day=d.getDay();
+  const m=new Date(d);m.setDate(d.getDate()-(day===0?6:day-1)-7);
+  return m.toISOString().split("T")[0];
+}
+function getMonthKey(){const d=new Date();return `${d.getFullYear()}-${d.getMonth()+1}`;}
+function getQuarterKey(){const d=new Date();return `${d.getFullYear()}-Q${Math.floor(d.getMonth()/3)}`;}
+function getSemiKey(){const d=new Date();return `${d.getFullYear()}-H${d.getMonth()<6?1:2}`;}
+function getYearKey(){return `${new Date().getFullYear()}`;}
+
+// ── Confetti ─────────────────────────────────────────────────
+function spawnConfetti(x,y){
+  const colors=["#e91e63","#2196F3","#4caf50","#ff9800","#9c27b0","#ffc107","#00bcd4","#ff5722"];
+  const root=document.getElementById("confetti-root");
+  for(let i=0;i<14;i++){
+    const dot=document.createElement("div");
+    const angle=(i/14)*360+Math.random()*15;
+    const dist=40+Math.random()*40;
+    const rad=(angle*Math.PI)/180;
+    const size=6+Math.random()*6;
+    dot.style.cssText=`position:fixed;left:${x}px;top:${y}px;width:${size}px;height:${size}px;
+      border-radius:${Math.random()>0.5?"50%":"3px"};background:${colors[i%colors.length]};
+      pointer-events:none;z-index:9999;transform:translate(-50%,-50%);
+      animation:burst 0.65s ease-out forwards;
+      --dx:${Math.cos(rad)*dist}px;--dy:${Math.sin(rad)*dist}px;`;
+    root.appendChild(dot);
+    setTimeout(()=>dot.remove(),750);
+  }
+}
+
+// ── State ─────────────────────────────────────────────────────
+let STATE={
+  activeTab:"today",
+  checked:{},snoozed:{},notes:{},
+  customTasks:{daily:[],monthly:[],quarterly:[],semiannual:[]},
+  userName:"Pam",
+  showBanner:true,
+  showResetModal:false,
+  snoozeModal:null,
+  noteModal:null,
+  addTaskModal:null,
+  showSettings:false,
+  newTaskLabel:"",
+  newTaskIcon:"🧹",
+  noteText:"",
+  nameInput:"Pam",
+};
+
+function loadStorage(){
+  try{
+    const raw=localStorage.getItem(STORAGE_KEY);
+    if(raw){
+      const s=JSON.parse(raw);
+      STATE.checked=s.checked||{};
+      STATE.snoozed=s.snoozed||{};
+      STATE.notes=s.notes||{};
+      STATE.customTasks=s.customTasks||{daily:[],monthly:[],quarterly:[],semiannual:[]};
+      if(s.userName){STATE.userName=s.userName;STATE.nameInput=s.userName;}
+      const tk=getTodayKey();
+      const dailyDone=DEFAULT_TASKS.daily.filter(t=>STATE.checked[`daily_${tk}__${t.id}`]).length;
+      STATE.showBanner=(dailyDone===0);
+    }
+  }catch(e){}
+}
+
+function saveStorage(){
+  try{
+    localStorage.setItem(STORAGE_KEY,JSON.stringify({
+      checked:STATE.checked,snoozed:STATE.snoozed,notes:STATE.notes,
+      customTasks:STATE.customTasks,userName:STATE.userName
+    }));
+  }catch(e){}
+}
+
+// ── Derived values ────────────────────────────────────────────
+function isChecked(id,scope){return !!STATE.checked[`${scope}__${id}`];}
+function isSnoozed(id,scope){return STATE.snoozed[`${scope}__${id}`];}
+function getNote(id,scope){return STATE.notes[`${scope}__${id}`]||"";}
+
+function getProgress(){
+  const today=new Date(),dow=today.getDay();
+  const tk=getTodayKey(),wk=getWeekKey();
+  const dailyAll=[...DEFAULT_TASKS.daily,...(STATE.customTasks.daily||[])];
+  const weeklyToday=DEFAULT_TASKS.weekly[dow]?.tasks||[];
+  const total=dailyAll.length+weeklyToday.length;
+  const done=dailyAll.filter(t=>isChecked(t.id,`daily_${tk}`)).length
+            +weeklyToday.filter(t=>isChecked(t.id,`weekly_${wk}`)).length;
+  return{total,done,pct:total>0?Math.round((done/total)*100):0};
+}
+
+function getMissedLastWeek(){
+  const missed=[];
+  const pwk=getPrevWeekKey();
+  [1,2,3,4,5,6,0].forEach(dow=>{
+    const s=DEFAULT_TASKS.weekly[dow];
+    const unchecked=s.tasks.filter(t=>!STATE.checked[`weekly_${pwk}__${t.id}`]&&STATE.snoozed[`weekly_${pwk}__${t.id}`]!=="skip");
+    if(unchecked.length>0)missed.push({day:DAYS[dow],icon:s.icon,title:s.title,pal:s.pal,tasks:unchecked});
+  });
+  return missed;
+}
+
+// ── HTML builders ─────────────────────────────────────────────
+function cbox(id,checked,pal){
+  return`<div class="${checked?"pop":""}" style="width:26px;height:26px;border-radius:8px;flex-shrink:0;
+    border:${checked?"none":`2px solid ${pal.light}`};
+    background:${checked?`linear-gradient(135deg,${pal.accent},${pal.text})`:"transparent"};
+    display:flex;align-items:center;justify-content:center;
+    transition:all 0.18s;box-shadow:${checked?`0 3px 12px ${pal.accent}55`:"none"};">
+    ${checked?`<svg width="14" height="11" viewBox="0 0 14 11" fill="none"><path d="M1.5 5.5L5.5 9.5L12.5 1.5" stroke="white" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg>`:""}
+  </div>`;
+}
+
+function taskRow(task,checked,snoozed,hasNote,pal,scope,canSnooze,canNote,canRemove,dimmed){
+  const skipOpacity=snoozed==="skip"?0.38:1;
+  const dimOp=(dimmed&&!checked)?0.7:1;
+  return`<div style="display:flex;align-items:center;gap:2px;margin-bottom:2px;opacity:${dimOp};">
+    <div class="tr" onclick="handleToggle('${task.id}','${scope}',event)"
+      style="flex:1;display:flex;align-items:center;gap:10px;padding:9px 10px 9px 12px;border-radius:12px;
+        background:${checked?`${pal.accent}12`:snoozed==="snooze"?"#fffde7":"transparent"};opacity:${skipOpacity};">
+      ${task.icon?`<span style="font-size:16px;min-width:22px;text-align:center;opacity:${checked?0.45:1};">${task.icon}</span>`:""}
+      <div style="flex:1;font-family:'Nunito',sans-serif;font-size:14px;font-weight:${checked?400:700};
+        color:${checked?"#ccc":snoozed?"#aaa":"#1a1a2e"};text-decoration:${checked?"line-through":"none"};transition:all 0.2s;">
+        ${task.label}
+        ${hasNote?`<span style="display:inline-block;width:7px;height:7px;border-radius:50%;background:#9c27b0;margin-left:7px;vertical-align:middle;"></span>`:""}
+        ${snoozed==="snooze"?`<span style="font-size:11px;color:#ff9800;margin-left:8px;font-weight:800;">⏰ snoozed</span>`:""}
+        ${snoozed==="skip"?`<span style="font-size:11px;color:#bbb;margin-left:6px;">skipped</span>`:""}
+      </div>
+      ${cbox(task.id,checked,pal)}
+    </div>
+    ${canNote?`<button onclick="openNote('${task.id}','${scope}',event)" title="Note"
+      style="background:transparent;border:none;cursor:pointer;padding:5px 3px;border-radius:8px;font-size:14px;opacity:${hasNote?1:0.3};transition:opacity 0.15s;line-height:1;"
+      onmouseover="this.style.opacity=1" onmouseout="this.style.opacity='${hasNote?1:0.3}'">📝</button>`:""}
+    ${canSnooze&&!checked&&snoozed!=="skip"?`<button onclick="openSnooze('${task.id}','${scope}','${task.label.replace(/'/g,"\\'")}',event)" title="Snooze/Skip"
+      style="background:transparent;border:none;cursor:pointer;padding:5px 3px;border-radius:8px;font-size:14px;opacity:0.3;transition:opacity 0.15s;line-height:1;"
+      onmouseover="this.style.opacity=1" onmouseout="this.style.opacity=0.3">⏸</button>`:""}
+    ${canRemove?`<button onclick="removeCustomTask('${scope.split('_')[0]}','${task.id}',event)" title="Remove"
+      style="background:transparent;border:none;cursor:pointer;padding:5px 3px;border-radius:8px;font-size:13px;opacity:0.3;transition:opacity 0.15s;line-height:1;color:#f44336;"
+      onmouseover="this.style.opacity=1" onmouseout="this.style.opacity=0.3">🗑️</button>`:""}
+  </div>`;
+}
+
+function sectionCard(title,sub,tasksHtml,pal,mt,highlight,addSection){
+  return`<div class="sc" style="background:#fff;border-radius:20px;margin-top:${mt?"14px":"0"};overflow:hidden;
+    box-shadow:${highlight?`0 4px 22px ${pal.accent}40, 0 0 0 2.5px ${pal.accent}`:"0 3px 16px rgba(0,0,0,0.09)"};">
+    <div style="padding:13px 16px 10px;background:linear-gradient(135deg,${pal.bg} 0%,rgba(255,255,255,0.5) 100%);border-bottom:2.5px solid ${pal.light};display:flex;align-items:center;gap:8px;">
+      <div style="flex:1;">
+        <div style="font-family:'Playfair Display',serif;font-size:16px;font-weight:700;color:${pal.text};">${title}</div>
+        ${sub?`<div style="font-family:'Nunito',sans-serif;font-size:12px;color:${pal.accent};margin-top:1px;font-weight:700;">${sub}</div>`:""}
+      </div>
+      ${addSection?`<button onclick="openAddTask('${addSection}')"
+        style="background:${pal.accent};border:none;color:#fff;border-radius:50%;width:30px;height:30px;font-size:18px;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;box-shadow:0 2px 8px ${pal.accent}55;transition:transform 0.15s;"
+        onmouseover="this.style.transform='scale(1.12)'" onmouseout="this.style.transform='scale(1)'"
+        title="Add custom task">+</button>`:""}
+    </div>
+    <div style="padding:8px 8px 10px;">${tasksHtml}</div>
+  </div>`;
+}
+
+// ── Tab renderers ─────────────────────────────────────────────
+function renderToday(){
+  const today=new Date(),dow=today.getDay();
+  const tk=getTodayKey(),wk=getWeekKey();
+  const dailyAll=[...DEFAULT_TASKS.daily,...(STATE.customTasks.daily||[])];
+  const weeklyToday=DEFAULT_TASKS.weekly[dow];
+  const dailyDone=dailyAll.filter(t=>isChecked(t.id,`daily_${tk}`)).length;
+  const wDone=weeklyToday?weeklyToday.tasks.filter(t=>isChecked(t.id,`weekly_${wk}`)).length:0;
+  const total=dailyAll.length+(weeklyToday?weeklyToday.tasks.length:0);
+  const done=dailyDone+wDone;
+
+  let html=sectionCard("🌅 Daily Habits",`${dailyDone}/${dailyAll.length} done`,
+    dailyAll.map(t=>taskRow(t,isChecked(t.id,`daily_${tk}`),isSnoozed(t.id,`daily_${tk}`),!!getNote(t.id,`daily_${tk}`),PAL.daily,`daily_${tk}`,true,true,t.custom,false)).join(""),
+    PAL.daily,false,false,"daily");
+
+  if(weeklyToday){
+    html+=sectionCard(`${weeklyToday.icon} ${weeklyToday.title}`,`${wDone}/${weeklyToday.tasks.length} done · ${DAYS[dow]}'s focus`,
+      weeklyToday.tasks.map(t=>taskRow(t,isChecked(t.id,`weekly_${wk}`),isSnoozed(t.id,`weekly_${wk}`),!!getNote(t.id,`weekly_${wk}`),weeklyToday.pal,`weekly_${wk}`,true,true,false,false)).join(""),
+      weeklyToday.pal,true,false,null);
+  }
+
+  if(done===total&&total>0){
+    html+=`<div style="text-align:center;padding:28px 0 8px;font-family:'Nunito',sans-serif;">
+      <div style="font-size:52px;">🎉</div>
+      <div style="font-size:19px;font-weight:900;color:#e91e63;margin-top:8px;">All done, ${STATE.userName}!</div>
+      <div style="font-size:14px;color:#666;margin-top:4px;">You absolutely crushed it today! ✨</div>
+    </div>`;
+  }
+  return html;
+}
+
+function renderWeekly(){
+  const wk=getWeekKey(),dow=new Date().getDay();
+  return [1,2,3,4,5,6,0].map((d,idx)=>{
+    const s=DEFAULT_TASKS.weekly[d];
+    const done=s.tasks.filter(t=>isChecked(t.id,`weekly_${wk}`)).length;
+    const isToday=d===dow;
+    return sectionCard(`${s.icon} ${DAYS[d]} — ${s.title}`,`${done}/${s.tasks.length} done${isToday?" · TODAY 👈":""}`,
+      s.tasks.map(t=>taskRow(t,isChecked(t.id,`weekly_${wk}`),isSnoozed(t.id,`weekly_${wk}`),!!getNote(t.id,`weekly_${wk}`),s.pal,`weekly_${wk}`,true,true,false,false)).join(""),
+      s.pal,idx>0,isToday,null);
+  }).join("");
+}
+
+function renderMonthly(){
+  const mk=getMonthKey();
+  const today=new Date();
+  const cm=MONTH_NAMES[today.getMonth()];
+  const all=[...DEFAULT_TASKS.monthly,...(STATE.customTasks.monthly||[])];
+  const done=all.filter(t=>isChecked(t.id,`monthly_${mk}`)).length;
+  return sectionCard(`🗓️ ${cm} — Monthly Tasks`,`${done}/${all.length} completed`,
+    all.map(t=>taskRow(t,isChecked(t.id,`monthly_${mk}`),isSnoozed(t.id,`monthly_${mk}`),!!getNote(t.id,`monthly_${mk}`),PAL.monthly,`monthly_${mk}`,true,true,t.custom,false)).join(""),
+    PAL.monthly,false,false,"monthly");
+}
+
+function renderLongterm(){
+  const qk=getQuarterKey(),sk=getSemiKey(),yk=getYearKey();
+  const today=new Date(),cm=MONTH_NAMES[today.getMonth()];
+  const qAll=[...DEFAULT_TASKS.quarterly,...(STATE.customTasks.quarterly||[])];
+  const sAll=[...DEFAULT_TASKS.semiannual,...(STATE.customTasks.semiannual||[])];
+  const qDone=qAll.filter(t=>isChecked(t.id,`quarterly_${qk}`)).length;
+  const sDone=sAll.filter(t=>isChecked(t.id,`semi_${sk}`)).length;
+  const aDone=DEFAULT_TASKS.annual.filter(t=>isChecked(t.id,`annual_${yk}`)).length;
+
+  let html=sectionCard("📦 Quarterly",`${qDone}/${qAll.length} this quarter`,
+    qAll.map(t=>taskRow(t,isChecked(t.id,`quarterly_${qk}`),isSnoozed(t.id,`quarterly_${qk}`),!!getNote(t.id,`quarterly_${qk}`),PAL.quarterly,`quarterly_${qk}`,true,true,t.custom,false)).join(""),
+    PAL.quarterly,false,false,"quarterly");
+
+  html+=sectionCard("🧽 Semi-Annual Deep Clean",`${sDone}/${sAll.length} this half-year`,
+    sAll.map(t=>taskRow(t,isChecked(t.id,`semi_${sk}`),isSnoozed(t.id,`semi_${sk}`),!!getNote(t.id,`semi_${sk}`),PAL.semiannual,`semi_${sk}`,true,true,t.custom,false)).join(""),
+    PAL.semiannual,true,false,"semiannual");
+
+  const annualRows=DEFAULT_TASKS.annual.map(t=>{
+    const isCur=t.month===cm;
+    const ck=isChecked(t.id,`annual_${yk}`);
+    const hn=!!getNote(t.id,`annual_${yk}`);
+    return`<div style="display:flex;align-items:center;gap:2px;margin-bottom:3px;">
+      <div class="tr" onclick="handleToggle('${t.id}','annual_${yk}',event)"
+        style="flex:1;display:flex;align-items:center;gap:10px;padding:10px;border-radius:12px;
+          background:${isCur?`${PAL.annual.accent}15`:"transparent"};
+          border:${isCur?`1.5px solid ${PAL.annual.accent}40`:"1.5px solid transparent"};">
+        <div style="min-width:36px;text-align:center;font-family:'Nunito',sans-serif;font-size:11px;font-weight:800;
+          letter-spacing:1px;text-transform:uppercase;color:${isCur?PAL.annual.accent:"#bbb"};
+          background:${isCur?`${PAL.annual.accent}18`:"transparent"};padding:2px 5px;border-radius:6px;">${t.month}</div>
+        <div style="flex:1;font-family:'Nunito',sans-serif;font-size:14px;font-weight:${ck?400:600};
+          color:${ck?"#bbb":"#1a1a2e"};text-decoration:${ck?"line-through":"none"};">
+          ${t.label}
+          ${hn?`<span style="display:inline-block;width:7px;height:7px;border-radius:50%;background:#9c27b0;margin-left:7px;vertical-align:middle;"></span>`:""}
+        </div>
+        ${cbox(t.id,ck,PAL.annual)}
+      </div>
+      <button onclick="openNote('${t.id}','annual_${yk}',event)" title="Note"
+        style="background:transparent;border:none;cursor:pointer;padding:5px 3px;border-radius:8px;font-size:14px;opacity:${hn?1:0.3};transition:opacity 0.15s;line-height:1;"
+        onmouseover="this.style.opacity=1" onmouseout="this.style.opacity='${hn?1:0.3}'">📝</button>
+    </div>`;
+  }).join("");
+
+  html+=sectionCard("🗓️ Annual Tasks",`${aDone}/12 months done`,annualRows,PAL.annual,true,false,null);
+  return html;
+}
+
+function renderMissed(){
+  const missed=getMissedLastWeek();
+  const count=missed.reduce((a,b)=>a+b.tasks.length,0);
+  const pwk=getPrevWeekKey();
+  if(count===0){
+    return`<div style="text-align:center;padding:40px 20px;font-family:'Nunito',sans-serif;">
+      <div style="font-size:52px;">🌟</div>
+      <div style="font-size:18px;font-weight:800;color:#4caf50;margin-top:10px;">Nothing missed!</div>
+      <div style="font-size:14px;color:#666;margin-top:4px;">You completed everything last week. Incredible, ${STATE.userName}! 🎉</div>
+    </div>`;
+  }
+  let html=`<div style="font-family:'Nunito',sans-serif;font-size:13px;color:#888;margin-bottom:14px;">
+    ${count} task${count!==1?"s":""} from last week weren't completed. Check them off if you got to them!
+  </div>`;
+  missed.forEach((g,idx)=>{
+    html+=sectionCard(`${g.icon} ${g.day} — ${g.title}`,`${g.tasks.length} missed`,
+      g.tasks.map(t=>taskRow(t,isChecked(t.id,`weekly_${pwk}`),null,!!getNote(t.id,`weekly_${pwk}`),g.pal,`weekly_${pwk}`,false,true,false,true)).join(""),
+      g.pal,idx>0,false,null);
+  });
+  return html;
+}
+
+// ── Main render ───────────────────────────────────────────────
+function render(){
+  const today=new Date(),dow=today.getDay();
+  const {total,done,pct}=getProgress();
+  const missed=getMissedLastWeek();
+  const missedCount=missed.reduce((a,b)=>a+b.tasks.length,0);
+  const hour=today.getHours();
+  const greeting=hour<12?"Good morning":hour<17?"Good afternoon":"Good evening";
+  const tk=getTodayKey();
+  const dailyDone=([...DEFAULT_TASKS.daily,...(STATE.customTasks.daily||[])]).filter(t=>isChecked(t.id,`daily_${tk}`)).length;
+
+  const TABS=[
+    {id:"today",label:"Today",emoji:"☀️",color:"#e91e63"},
+    {id:"weekly",label:"Weekly",emoji:"📅",color:"#1976d2"},
+    {id:"monthly",label:"Monthly",emoji:"🗓️",color:"#9c27b0"},
+    {id:"longterm",label:"Long-Term",emoji:"🌟",color:"#ff9800"},
+    {id:"missed",label:"Missed",emoji:"🔍",color:"#f44336"},
+  ];
+
+  let tabContent="";
+  if(STATE.activeTab==="today") tabContent=renderToday();
+  else if(STATE.activeTab==="weekly") tabContent=renderWeekly();
+  else if(STATE.activeTab==="monthly") tabContent=renderMonthly();
+  else if(STATE.activeTab==="longterm") tabContent=renderLongterm();
+  else if(STATE.activeTab==="missed") tabContent=renderMissed();
+
+  document.getElementById("app").innerHTML=`
+    <!-- HEADER -->
+    <div style="background:linear-gradient(135deg,#e91e63 0%,#9c27b0 45%,#3f51b5 100%);padding:24px 20px 16px;text-align:center;box-shadow:0 6px 28px rgba(80,0,120,0.3);position:relative;overflow:hidden;">
+      ${[{w:100,h:100,t:"-30px",l:"-20px"},{w:60,h:60,t:"55%",l:"80%"},{w:130,h:130,t:"-15px",l:"68%"},{w:50,h:50,t:"60%",l:"4%"}].map(c=>`<div style="position:absolute;border-radius:50%;background:rgba(255,255,255,0.07);width:${c.w}px;height:${c.h}px;top:${c.t};left:${c.l};pointer-events:none;"></div>`).join("")}
+      <button class="tb" onclick="openSettings()" style="position:absolute;top:14px;right:14px;background:rgba(255,255,255,0.2);border:none;color:#fff;border-radius:50%;width:34px;height:34px;font-size:17px;cursor:pointer;display:flex;align-items:center;justify-content:center;backdrop-filter:blur(6px);">⚙️</button>
+      <div style="font-family:'Playfair Display',serif;font-size:27px;font-weight:700;color:#fff;position:relative;text-shadow:0 2px 10px rgba(0,0,0,0.25);">🏡 ${STATE.userName}'s Clean Home</div>
+      <div style="font-family:'Nunito',sans-serif;font-size:12px;color:rgba(255,255,255,0.82);margin-top:3px;letter-spacing:2px;text-transform:uppercase;position:relative;">${DAYS[dow]} · ${today.toLocaleDateString("en-US",{month:"long",day:"numeric",year:"numeric"})}</div>
+      <div style="display:flex;justify-content:center;gap:10px;margin-top:14px;position:relative;flex-wrap:wrap;">
+        ${[{l:"Today",v:`${pct}%`},{l:"Done",v:`${done}/${total}`},{l:"Missed 🔍",v:`${missedCount}`}].map(s=>`
+          <div style="background:rgba(255,255,255,0.18);border-radius:14px;padding:7px 14px;backdrop-filter:blur(10px);min-width:76px;text-align:center;">
+            <div style="font-family:'Nunito',sans-serif;font-size:10px;color:rgba(255,255,255,0.82);text-transform:uppercase;letter-spacing:1px;">${s.l}</div>
+            <div style="font-family:'Playfair Display',serif;font-size:21px;color:#fff;font-weight:700;">${s.v}</div>
+          </div>`).join("")}
+      </div>
+      <div style="margin:12px auto 0;max-width:300px;height:9px;background:rgba(255,255,255,0.2);border-radius:10px;overflow:hidden;position:relative;">
+        <div style="height:100%;width:${pct}%;background:linear-gradient(90deg,#ffe082,#fff176,#aed581);border-radius:10px;transition:width 0.7s;box-shadow:0 0 10px rgba(255,230,80,0.7);"></div>
+      </div>
+      <button class="tb" onclick="openReset()" style="margin-top:11px;background:rgba(255,255,255,0.18);border:1px solid rgba(255,255,255,0.35);color:#fff;border-radius:20px;padding:5px 18px;font-size:12px;backdrop-filter:blur(6px);position:relative;letter-spacing:0.5px;font-weight:700;">🔄 Reset Tasks</button>
+    </div>
+
+    <!-- BANNER -->
+    ${STATE.showBanner&&dailyDone===0?`
+    <div class="pulse" style="margin:14px 14px 0;padding:14px 16px;border-radius:18px;background:linear-gradient(135deg,#e91e63,#ff5722);color:#fff;display:flex;align-items:center;gap:12px;">
+      <span style="font-size:30px;">👋</span>
+      <div style="flex:1;">
+        <div style="font-family:'Nunito',sans-serif;font-weight:900;font-size:15px;">${greeting}, ${STATE.userName}!</div>
+        <div style="font-family:'Nunito',sans-serif;font-size:13px;opacity:0.92;margin-top:2px;">${total} tasks today${DEFAULT_TASKS.weekly[dow]?` · Focus: ${DEFAULT_TASKS.weekly[dow].icon} ${DEFAULT_TASKS.weekly[dow].title}`:""} — let's go! 💪</div>
+      </div>
+      <button onclick="dismissBanner()" style="background:rgba(255,255,255,0.25);border:none;color:#fff;border-radius:50%;width:28px;height:28px;cursor:pointer;font-size:14px;display:flex;align-items:center;justify-content:center;font-family:'Nunito',sans-serif;">✕</button>
+    </div>`:""}
+
+    <!-- TABS -->
+    <div style="display:flex;gap:6px;padding:14px 14px 0;justify-content:center;flex-wrap:wrap;">
+      ${TABS.map(tab=>`
+        <button class="tb" onclick="setTab('${tab.id}')" style="font-size:12px;font-weight:${STATE.activeTab===tab.id?900:600};padding:8px 13px;border-radius:24px;
+          background:${STATE.activeTab===tab.id?tab.color:`${tab.color}1a`};color:${STATE.activeTab===tab.id?"#fff":tab.color};
+          box-shadow:${STATE.activeTab===tab.id?`0 4px 16px ${tab.color}55`:"none"};position:relative;">
+          ${tab.emoji} ${tab.label}
+          ${tab.id==="missed"&&missedCount>0?`<span style="position:absolute;top:-4px;right:-4px;background:#f44336;color:#fff;border-radius:50%;width:18px;height:18px;font-size:10px;font-weight:900;display:flex;align-items:center;justify-content:center;">${missedCount}</span>`:""}
+        </button>`).join("")}
+    </div>
+
+    <!-- CONTENT -->
+    <div class="fin" style="padding:14px 14px 0;max-width:560px;margin:0 auto;">
+      ${tabContent}
+    </div>
+
+    <!-- MODALS -->
+    ${renderModals()}
+  `;
+}
+
+function renderModals(){
+  let html="";
+
+  // Snooze modal
+  if(STATE.snoozeModal){
+    const {id,scope,label}=STATE.snoozeModal;
+    html+=`<div class="modal-overlay" onclick="closeSnooze()">
+      <div class="modal-sheet" onclick="event.stopPropagation()">
+        <div style="font-family:'Playfair Display',serif;font-size:18px;font-weight:700;margin-bottom:5px;">⏸️ Task Options</div>
+        <div style="font-family:'Nunito',sans-serif;font-size:13px;color:#888;margin-bottom:20px;border-bottom:1px solid #eee;padding-bottom:14px;font-style:italic;">"${label}"</div>
+        <div style="display:flex;flex-direction:column;gap:10px;">
+          <button class="sb" onclick="doSnooze('${id}','${scope}','snooze')" style="padding:15px 20px;border-radius:16px;background:linear-gradient(135deg,#fff3e0,#ffe0b2);color:#e65100;font-weight:800;font-size:15px;text-align:left;">😴 Snooze — remind me next time</button>
+          <button class="sb" onclick="doSnooze('${id}','${scope}','skip')" style="padding:15px 20px;border-radius:16px;background:linear-gradient(135deg,#fce4ec,#f8bbd0);color:#880e4f;font-weight:800;font-size:15px;text-align:left;">⏭️ Skip this one entirely</button>
+          <button class="sb" onclick="closeSnooze()" style="padding:14px 20px;border-radius:16px;background:#f5f5f5;color:#777;font-weight:700;font-size:14px;">Cancel</button>
+        </div>
+      </div>
+    </div>`;
+  }
+
+  // Note modal
+  if(STATE.noteModal){
+    const {id,scope,label}=STATE.noteModal;
+    html+=`<div class="modal-overlay" onclick="closeNote()">
+      <div class="modal-sheet" onclick="event.stopPropagation()">
+        <div style="font-family:'Playfair Display',serif;font-size:18px;font-weight:700;margin-bottom:4px;">📝 Note</div>
+        <div style="font-family:'Nunito',sans-serif;font-size:13px;color:#999;margin-bottom:14px;font-style:italic;">"${label}"</div>
+        <textarea id="note-input" rows="4" placeholder="Add a note... (e.g. used the good mop)">${STATE.noteText}</textarea>
+        <div style="display:flex;gap:10px;margin-top:14px;">
+          <button class="sb" onclick="saveNote()" style="flex:1;padding:13px;border-radius:14px;background:linear-gradient(135deg,#9c27b0,#673ab7);color:#fff;font-weight:800;font-size:15px;">Save Note</button>
+          <button class="sb" onclick="closeNote()" style="padding:13px 18px;border-radius:14px;background:#f0f0f0;color:#666;font-weight:700;font-size:15px;">Cancel</button>
+        </div>
+      </div>
+    </div>`;
+  }
+
+  // Add task modal
+  if(STATE.addTaskModal){
+    html+=`<div class="modal-overlay" onclick="closeAddTask()">
+      <div class="modal-sheet" onclick="event.stopPropagation()">
+        <div style="font-family:'Playfair Display',serif;font-size:18px;font-weight:700;margin-bottom:4px;">➕ Add Custom Task</div>
+        <div style="font-family:'Nunito',sans-serif;font-size:13px;color:#999;margin-bottom:16px;font-style:italic;">Adding to: ${STATE.addTaskModal}</div>
+        <div style="margin-bottom:14px;">
+          <div style="font-family:'Nunito',sans-serif;font-size:12px;font-weight:700;color:#555;margin-bottom:8px;text-transform:uppercase;letter-spacing:1px;">Task name</div>
+          <input type="text" id="new-task-input" value="${STATE.newTaskLabel}" oninput="STATE.newTaskLabel=this.value" onkeydown="if(event.key==='Enter')addCustomTask()" placeholder="e.g. Clean ceiling vents"/>
+        </div>
+        <div style="margin-bottom:18px;">
+          <div style="font-family:'Nunito',sans-serif;font-size:12px;font-weight:700;color:#555;margin-bottom:8px;text-transform:uppercase;letter-spacing:1px;">Pick an icon</div>
+          <div style="display:flex;flex-wrap:wrap;gap:6px;">
+            ${ICONS.map(ic=>`<button class="icon-btn${STATE.newTaskIcon===ic?" sel":""}" onclick="selectIcon('${ic}')">${ic}</button>`).join("")}
+          </div>
+        </div>
+        <div style="display:flex;gap:10px;">
+          <button class="sb" onclick="addCustomTask()" style="flex:1;padding:13px;border-radius:14px;background:${STATE.newTaskLabel.trim()?"linear-gradient(135deg,#e91e63,#9c27b0)":"#e0e0e0"};color:${STATE.newTaskLabel.trim()?"#fff":"#aaa"};font-weight:800;font-size:15px;">Add Task</button>
+          <button class="sb" onclick="closeAddTask()" style="padding:13px 18px;border-radius:14px;background:#f0f0f0;color:#666;font-weight:700;font-size:15px;">Cancel</button>
+        </div>
+      </div>
+    </div>`;
+  }
+
+  // Reset modal
+  if(STATE.showResetModal){
+    const tk=getTodayKey(),wk=getWeekKey(),mk=getMonthKey();
+    html+=`<div class="modal-overlay center" onclick="closeReset()">
+      <div class="modal-center" onclick="event.stopPropagation()">
+        <div style="font-family:'Playfair Display',serif;font-size:21px;font-weight:700;margin-bottom:6px;">🔄 Reset Tasks</div>
+        <div style="font-family:'Nunito',sans-serif;font-size:14px;color:#777;margin-bottom:20px;">Choose what to reset:</div>
+        <div style="display:flex;flex-direction:column;gap:10px;">
+          <button class="sb" onclick="doReset('daily_${tk}')" style="padding:13px 16px;border-radius:14px;font-weight:700;font-size:14px;background:#f5f5f5;color:#333;text-align:left;">🌅 Today's daily tasks</button>
+          <button class="sb" onclick="doReset('weekly_${wk}')" style="padding:13px 16px;border-radius:14px;font-weight:700;font-size:14px;background:#f5f5f5;color:#333;text-align:left;">📅 This week's tasks</button>
+          <button class="sb" onclick="doReset('monthly_${mk}')" style="padding:13px 16px;border-radius:14px;font-weight:700;font-size:14px;background:#f5f5f5;color:#333;text-align:left;">🗓️ This month's tasks</button>
+          <button class="sb" onclick="doReset('all')" style="padding:13px 16px;border-radius:14px;font-weight:700;font-size:14px;background:linear-gradient(135deg,#ffebee,#ffcdd2);color:#c62828;text-align:left;">♻️ Reset EVERYTHING</button>
+          <button class="sb" onclick="closeReset()" style="padding:13px 16px;border-radius:14px;background:#eee;color:#666;font-weight:700;font-size:14px;">Cancel</button>
+        </div>
+      </div>
+    </div>`;
+  }
+
+  // Settings modal
+  if(STATE.showSettings){
+    html+=`<div class="modal-overlay center" onclick="closeSettings()">
+      <div class="modal-center" onclick="event.stopPropagation()">
+        <div style="font-family:'Playfair Display',serif;font-size:21px;font-weight:700;margin-bottom:6px;">⚙️ Settings</div>
+        <div style="font-family:'Nunito',sans-serif;font-size:13px;color:#777;margin-bottom:20px;">Personalize your app</div>
+        <div style="margin-bottom:20px;">
+          <div style="font-family:'Nunito',sans-serif;font-size:12px;font-weight:700;color:#555;margin-bottom:8px;text-transform:uppercase;letter-spacing:1px;">Your name</div>
+          <input type="text" id="name-input" value="${STATE.nameInput}" oninput="STATE.nameInput=this.value" onkeydown="if(event.key==='Enter')saveName()" placeholder="Enter your name"/>
+        </div>
+        <div style="display:flex;gap:10px;">
+          <button class="sb" onclick="saveName()" style="flex:1;padding:13px;border-radius:14px;background:linear-gradient(135deg,#e91e63,#9c27b0);color:#fff;font-weight:800;font-size:15px;">Save</button>
+          <button class="sb" onclick="closeSettings()" style="padding:13px 18px;border-radius:14px;background:#f0f0f0;color:#666;font-weight:700;font-size:15px;">Cancel</button>
+        </div>
+      </div>
+    </div>`;
+  }
+
+  return html;
+}
+
+// ── Event handlers ────────────────────────────────────────────
+function setTab(id){STATE.activeTab=id;render();}
+function dismissBanner(){STATE.showBanner=false;render();}
+function openReset(){STATE.showResetModal=true;render();}
+function closeReset(){STATE.showResetModal=false;render();}
+function openSettings(){STATE.showSettings=true;render();}
+function closeSettings(){STATE.showSettings=false;render();}
+function closeSnooze(){STATE.snoozeModal=null;render();}
+function closeNote(){STATE.noteModal=null;render();}
+function closeAddTask(){STATE.addTaskModal=null;STATE.newTaskLabel="";STATE.newTaskIcon="🧹";render();}
+function openAddTask(section){STATE.addTaskModal=section;render();}
+function selectIcon(ic){STATE.newTaskIcon=ic;render();}
+
+function handleToggle(id,scope,e){
+  const key=`${scope}__${id}`;
+  STATE.checked[key]=!STATE.checked[key];
+  if(STATE.checked[key]){
+    spawnConfetti(e.clientX,e.clientY);
+  }
+  delete STATE.snoozed[key];
+  saveStorage();
+  render();
+}
+
+function openSnooze(id,scope,label,e){
+  e.stopPropagation();
+  STATE.snoozeModal={id,scope,label};
+  render();
+}
+
+function doSnooze(id,scope,type){
+  STATE.snoozed[`${scope}__${id}`]=type;
+  STATE.snoozeModal=null;
+  saveStorage();
+  render();
+}
+
+function openNote(id,scope,e){
+  e.stopPropagation();
+  // find label from tasks
+  let label="Task";
+  const allT=[...DEFAULT_TASKS.daily,...DEFAULT_TASKS.monthly,...DEFAULT_TASKS.quarterly,...DEFAULT_TASKS.semiannual,...DEFAULT_TASKS.annual];
+  Object.values(DEFAULT_TASKS.weekly).forEach(w=>w.tasks&&allT.push(...w.tasks));
+  Object.values(STATE.customTasks).forEach(arr=>allT.push(...arr));
+  const found=allT.find(t=>t.id===id);
+  if(found)label=found.label||found.label;
+  STATE.noteText=STATE.notes[`${scope}__${id}`]||"";
+  STATE.noteModal={id,scope,label};
+  render();
+}
+
+function saveNote(){
+  if(!STATE.noteModal)return;
+  const inp=document.getElementById("note-input");
+  const val=inp?inp.value:STATE.noteText;
+  STATE.notes[`${STATE.noteModal.scope}__${STATE.noteModal.id}`]=val;
+  STATE.noteModal=null;
+  saveStorage();
+  render();
+}
+
+function addCustomTask(){
+  const inp=document.getElementById("new-task-input");
+  const label=inp?inp.value.trim():STATE.newTaskLabel.trim();
+  if(!label||!STATE.addTaskModal)return;
+  const id=`custom_${STATE.addTaskModal}_${Date.now()}`;
+  STATE.customTasks[STATE.addTaskModal]=STATE.customTasks[STATE.addTaskModal]||[];
+  STATE.customTasks[STATE.addTaskModal].push({id,label,icon:STATE.newTaskIcon,custom:true});
+  STATE.addTaskModal=null;STATE.newTaskLabel="";STATE.newTaskIcon="🧹";
+  saveStorage();render();
+}
+
+function removeCustomTask(section,id,e){
+  e.stopPropagation();
+  STATE.customTasks[section]=(STATE.customTasks[section]||[]).filter(t=>t.id!==id);
+  saveStorage();render();
+}
+
+function doReset(scope){
+  if(scope==="all"){STATE.checked={};STATE.snoozed={};}
+  else{
+    const pre=scope+"__";
+    Object.keys(STATE.checked).filter(k=>k.startsWith(pre)).forEach(k=>delete STATE.checked[k]);
+    Object.keys(STATE.snoozed).filter(k=>k.startsWith(pre)).forEach(k=>delete STATE.snoozed[k]);
+  }
+  STATE.showResetModal=false;
+  saveStorage();render();
+}
+
+function saveName(){
+  const inp=document.getElementById("name-input");
+  STATE.userName=inp?inp.value||"Pam":STATE.nameInput||"Pam";
+  STATE.nameInput=STATE.userName;
+  STATE.showSettings=false;
+  saveStorage();render();
+}
+
+// ── Boot ──────────────────────────────────────────────────────
+loadStorage();
+render();
+</script>
+</body>
+</html>
