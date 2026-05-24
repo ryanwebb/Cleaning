@@ -5,6 +5,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0"/>
   <title>Pam's Clean Home</title>
   <link rel="apple-touch-icon" href="/Cleaning/icon.png"/>
+  <link rel="apple-touch-icon-precomposed" href="/Cleaning/icon.png"/>
+  <link rel="shortcut icon" href="/Cleaning/icon.png"/>
   <meta name="apple-mobile-web-app-capable" content="yes"/>
   <meta name="apple-mobile-web-app-title" content="Pam's Clean Home"/>
   <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&family=Playfair+Display:wght@600;700&display=swap" rel="stylesheet"/>
@@ -500,6 +502,7 @@ function render(){
       <button class="tb" onclick="openSettings()" style="position:absolute;top:14px;right:14px;background:rgba(255,255,255,0.2);border:none;color:#fff;border-radius:50%;width:34px;height:34px;font-size:17px;cursor:pointer;display:flex;align-items:center;justify-content:center;backdrop-filter:blur(6px);">⚙️</button>
       <div style="font-family:'Playfair Display',serif;font-size:27px;font-weight:700;color:#fff;position:relative;text-shadow:0 2px 10px rgba(0,0,0,0.25);">🏡 ${STATE.userName}'s Clean Home</div>
       <div style="font-family:'Nunito',sans-serif;font-size:12px;color:rgba(255,255,255,0.82);margin-top:3px;letter-spacing:2px;text-transform:uppercase;position:relative;">${DAYS[dow]} · ${today.toLocaleDateString("en-US",{month:"long",day:"numeric",year:"numeric"})}</div>
+      <div style="font-family:'Nunito',sans-serif;font-size:10px;color:rgba(255,255,255,0.45);margin-top:2px;letter-spacing:1px;position:relative;">v1.0</div>
       <div style="display:flex;justify-content:center;gap:10px;margin-top:14px;position:relative;flex-wrap:wrap;">
         ${[{l:"Today",v:`${pct}%`},{l:"Done",v:`${done}/${total}`},{l:"Missed 🔍",v:`${missedCount}`}].map(s=>`
           <div style="background:rgba(255,255,255,0.18);border-radius:14px;padding:7px 14px;backdrop-filter:blur(10px);min-width:76px;text-align:center;">
