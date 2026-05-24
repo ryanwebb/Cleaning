@@ -4,6 +4,9 @@
   <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0"/>
   <title>Pam's Clean Home</title>
+  <link rel="apple-touch-icon" href="/icon.png"/>
+  <meta name="apple-mobile-web-app-capable" content="yes"/>
+  <meta name="apple-mobile-web-app-title" content="Pam's Clean Home"/>
   <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&family=Playfair+Display:wght@600;700&display=swap" rel="stylesheet"/>
   <style>
     *{box-sizing:border-box;margin:0;padding:0;}
@@ -612,6 +615,7 @@ function renderModals(){
           <button class="sb" onclick="doReset('daily_${tk}')" style="padding:13px 16px;border-radius:14px;font-weight:700;font-size:14px;background:#f5f5f5;color:#333;text-align:left;">🌅 Today's daily tasks</button>
           <button class="sb" onclick="doReset('weekly_${wk}')" style="padding:13px 16px;border-radius:14px;font-weight:700;font-size:14px;background:#f5f5f5;color:#333;text-align:left;">📅 This week's tasks</button>
           <button class="sb" onclick="doReset('monthly_${mk}')" style="padding:13px 16px;border-radius:14px;font-weight:700;font-size:14px;background:#f5f5f5;color:#333;text-align:left;">🗓️ This month's tasks</button>
+          <button class="sb" onclick="doReset('missed')" style="padding:13px 16px;border-radius:14px;font-weight:700;font-size:14px;background:linear-gradient(135deg,#fff3e0,#ffe0b2);color:#e65100;text-align:left;">🔍 Clear "Missed" counter</button>
           <button class="sb" onclick="doReset('all')" style="padding:13px 16px;border-radius:14px;font-weight:700;font-size:14px;background:linear-gradient(135deg,#ffebee,#ffcdd2);color:#c62828;text-align:left;">♻️ Reset EVERYTHING</button>
           <button class="sb" onclick="closeReset()" style="padding:13px 16px;border-radius:14px;background:#eee;color:#666;font-weight:700;font-size:14px;">Cancel</button>
         </div>
@@ -720,6 +724,16 @@ function removeCustomTask(section,id,e){
 
 function doReset(scope){
   if(scope==="all"){STATE.checked={};STATE.snoozed={};}
+  else if(scope==="missed"){
+    const pwk=getPrevWeekKey();
+    [0,1,2,3,4,5,6].forEach(dow=>{
+      const s=DEFAULT_TASKS.weekly[dow];
+      s.tasks.forEach(t=>{
+        const key=`weekly_${pwk}__${t.id}`;
+        if(!STATE.checked[key]) STATE.snoozed[key]="skip";
+      });
+    });
+  }
   else{
     const pre=scope+"__";
     Object.keys(STATE.checked).filter(k=>k.startsWith(pre)).forEach(k=>delete STATE.checked[k]);
